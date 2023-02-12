@@ -3,8 +3,28 @@
 <center><img src="http://i.imgur.com/sSaOozN.png" width="500"></center>
 
 ## COURSE: VISUAL ANALYTICS FOR POLICY & MANAGEMENT  - EVANS SCHOOL UW
-### DELIVERABLE 3
+### DELIVERABLE 3 Spatial Analysis using Nigeria LSMS-ISA 2013 
 ### by: Sebastián Wood
+
+1. Open the EPAR LSMS-ISA Nigeria Wave 3 data
+```{r}
+rm(list = ls())
+
+linkCSV='https://github.com/sebawood1/deliverable-3/raw/main/NGA_W3_EPAR.csv'
+
+dataNGA=read.csv(linkCSV)
+View(dataNGA)
+
+```
+
+2. Select some of the variables and create a new Dataset
+```{r}
+
+library(tidyverse)
+dataNGA <- select(dataNGA, hhid, zone, state, rural, daily_percap_cons, months_food_insec)
+```
+
+
 
 
 
