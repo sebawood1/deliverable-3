@@ -10,7 +10,7 @@
 ```{r}
 rm(list = ls())
 
-linkCSV='https://raw.githubusercontent.com/sebawood1/deliverable-3/main/EPAR_NGA_states.csv'
+linkCSV='https://github.com/sebawood1/deliverable-3/raw/main/NGA_W3_EPAR.csv'
 
 dataNGA=read.csv(linkCSV)
 #View(dataNGA)
@@ -21,7 +21,7 @@ dataNGA=read.csv(linkCSV)
 ```{r}
 
 library(tidyverse)
-dataNGA <- select(dataNGA, state, daily_percap_cons, months_food_insec, lvstck_holding_tlu, months_food_insecure)
+dataNGA <- select(dataNGA, hhid, zone, state, rural, daily_percap_cons, months_food_insec, lvstck_holding_tlu, farm_area)
 ```
 
 This is what we have:
@@ -33,17 +33,11 @@ Let's explore the behavior of each numerical variable:
 ```{r, eval=TRUE}
 boxplot(dataNGA[,c('daily_percap_cons','months_food_insec')])
 boxplot(dataNGA['months_food_insec'])
-boxplot(dataNGA['months_food_insecure'])
-
 boxplot(dataNGA['lvstck_holding_tlu'])
+boxplot(dataNGA['farm_area'])
 
 
 
-```
-
-I need to change the months_food_insecure so it becomes Higher % better (inversing the var newvar=1-var)
-```{r}
-dataNGA %>% mutate(months_food_insecure=1-months_food_insecure)
 ```
 
 Notice I used base plotting functions, instead of ggplot. This is because I just want to explore (not planing of publishing this).
@@ -54,15 +48,15 @@ In the last plot I detected different data ranges. Let's  try **standardization*
 ```{r, eval=TRUE}
 dataNGA$daily_percap_cons_S=as.vector(scale(dataNGA$daily_percap_cons))
 dataNGA$months_food_insec_S=as.vector(scale(dataNGA$months_food_insec))
-dataNGA$months_food_insecure_S=as.vector(scale(dataNGA$months_food_insecure))
 dataNGA$lvstck_holding_tlu_S=as.vector(scale(dataNGA$lvstck_holding_tlu))
+dataNGA$farm_area_S=as.vector(scale(dataNGA$farm_area))
 ```
 
 
 ```{r}
 library("tidyr")
 # dataNGA <- dataNGA %>% drop_na() This erases rows that contain NA in any variable
-vars <- c("daily_percap_cons","months_food_insecure", "lvstck_holding_tlu")
+vars <- c("daily_percap_cons","months_food_insec", "lvstck_holding_tlu")
 dataNGA <- dataNGA %>% drop_na(any_of(vars))
 ```
 
@@ -71,7 +65,7 @@ Let's summarize the three indexes using clustering. Let's try **pam** again:
 set.seed(123) # for replication purposes
 
 #variables needed
-scaledIndexes=c('daily_percap_cons_S','months_food_insecure_S', 'lvstck_holding_tlu')
+scaledIndexes=c('daily_percap_cons_S','months_food_insec_S', 'lvstck_holding_tlu')
 
 #computing distances among countries
 distMatrix=cluster::daisy(dataNGA[,scaledIndexes])
@@ -92,7 +86,7 @@ dataNGA$cluster=as.factor(res.pam$clustering)
 
 Let's see how can we interpret the cluster labels:
 ```{r, eval=TRUE}
-theVars=c('daily_percap_cons_S','months_food_insecure_S','lvstck_holding_tlu','cluster')
+theVars=c('daily_percap_cons_S','months_food_insec_S','lvstck_holding_tlu','cluster')
 aggregate(.~cluster,
           data=dataNGA[,theVars],
           FUN=median)
@@ -102,7 +96,7 @@ aggregate(.~cluster,
 Recoding the cluster values for a correct interpretation:
 ```{r, eval=TRUE}
 dataNGA$cluster=factor(dataNGA$cluster,
-                           levels=c(3,1,2),
+                           levels=c(1,3,2),
                            labels=c("Low","Mid","High"), 
                            ordered=T)
 ```
@@ -170,26 +164,15 @@ baseMap
 This will another map **on top** of the previous one. I will plot **numeric values**. If a polygon is grey means this country has no information:
 ```{r, eval=TRUE}
 numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
-                       aes(fill=months_food_insecure_S), # variable from mapWorld_indexes
+                       aes(fill=months_food_insec), # variable from mapWorld_indexes
                        color=NA)
 numericMap
 ```
-```{r, eval=TRUE}
-numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
-                       aes(fill=daily_percap_cons_S), # variable from mapWorld_indexes
-                       color=NA)
-numericMap
-```
-```{r, eval=TRUE}
-numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
-                       aes(fill=lvstck_holding_tlu_S), # variable from mapWorld_indexes
-                       color=NA)
-numericMap
-```
+
 We can customize the color sequence with **scale_fill_gradient**:
 
 ```{r, eval=TRUE}
-numericMap + scale_fill_gradient(low = 'lightblue',
+numericMap + scale_fill_gradient(low = 'red',
                                  high= 'blue')
 ```
 
@@ -223,6 +206,22 @@ categoricalMap + scale_fill_brewer(palette ='YlOrRd',
                                    name=Legend_title)
 ```
 
+
+
+This will another map **on top** of the previous one. I will plot **numeric values**. If a polygon is grey means this country has no information:
+```{r, eval=TRUE}
+numericMap_months= baseMap + geom_sf(data=mapNigeria_indexes,
+                       aes(fill=months_food_insec), # variable from mapWorld_indexes
+                       color=NA)
+numericMap_months
+```
+
+We can customize the color sequence with **scale_fill_gradient**:
+
+```{r, eval=TRUE}
+numericMap_months + scale_fill_gradient(low = 'lightblue',
+                                 high= 'red')
+```
 
 
 
