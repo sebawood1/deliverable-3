@@ -6,7 +6,11 @@
 ### DELIVERABLE 3 Spatial Analysis using Nigeria LSMS-ISA 2015-16
 ### by: Sebastián Wood
 
-1. Open the EPAR LSMS-ISA Nigeria Wave 3 data
+### I. Working with the LSMS-ISA Nigeria Wave 3 Data 
+
+1. This dataset was previously cleaned and analyzed using Stata by creating summary statistics at th state level. Therefore, the unit of analysis becomes each state of Nigeria in 2015-16.
+
+#### 1. Open the EPAR LSMS-ISA Nigeria Wave 3 data
 ```{r}
 rm(list = ls())
 
@@ -17,7 +21,7 @@ dataNGA=read.csv(linkCSV)
 
 ```
 
-2. Select some of the variables and create a new Dataset
+#### 2. Select some of the variables and create a new Dataset
 ```{r}
 
 library(tidyverse)
@@ -41,14 +45,12 @@ boxplot(dataNGA['lvstck_holding_tlu'])
 
 ```
 
-I need to change the months_food_insecure so it becomes Higher % better (inversing the var newvar=1-var)
+#### 3. I need to change the months_food_insecure so it becomes food security instead. This way a higher percentage of food security becomes something positive by creating the 1-food insecurity variable. Higher % better (inversing the var newvar=1-var)
 ```{r}
 dataNGA %>% mutate(months_food_insecure=1-months_food_insecure)
 ```
 
-Notice I used base plotting functions, instead of ggplot. This is because I just want to explore (not planing of publishing this).
-
-Let's create a contigency table first for mean values within each region:
+#### 4. Let's create a contigency table first for mean values within each region:
 
 In the last plot I detected different data ranges. Let's  try **standardization**:
 ```{r, eval=TRUE}
@@ -63,10 +65,10 @@ dataNGA$lvstck_holding_tlu_S=as.vector(scale(dataNGA$lvstck_holding_tlu))
 library("tidyr")
 # dataNGA <- dataNGA %>% drop_na() This erases rows that contain NA in any variable
 vars <- c("daily_percap_cons","months_food_insecure", "lvstck_holding_tlu")
-dataNGA <- dataNGA %>% drop_na(any_of(vars))
+dataNGA <- dataNGA %>% drop_na(any_of(vars)) # We delete states with no observations (no data)
 ```
 
-Let's summarize the three indexes using clustering. Let's try **pam** again:
+#### 5. Let's summarize the three indexes using clustering. Let's try **pam** again:
 ```{r, eval=TRUE}
 set.seed(123) # for replication purposes
 
@@ -90,14 +92,14 @@ Let's save the cluster info into the data frame:
 dataNGA$cluster=as.factor(res.pam$clustering)
 ```
 
-Let's see how can we interpret the cluster labels:
+#### 6. Let's see how can we interpret the cluster labels:
 ```{r, eval=TRUE}
 theVars=c('daily_percap_cons_S','months_food_insecure_S','lvstck_holding_tlu','cluster')
 aggregate(.~cluster,
           data=dataNGA[,theVars],
           FUN=median)
 ```
-
+#### Notes: I am not entirely sure how to interpret these clusters given that for each variable, the cluster represents different interpretations in the order of values. For example, for daily per capita consumption low is 2, medium is 3, and high is 1, while for months food secure 3 is low, 2 is medium and 1 is high.
 
 Recoding the cluster values for a correct interpretation:
 ```{r, eval=TRUE}
@@ -107,7 +109,9 @@ dataNGA$cluster=factor(dataNGA$cluster,
                            ordered=T)
 ```
 
-The purpose is to represent that information into a map. Let's bring the map:
+### II. Spatial Analysis using Nigeria Data: 
+
+#### 1. The purpose is to represent that information into a map. Let's bring the map:
 
 First I had to download a Nigeria Shapefile for zones and regions from google and then convert the SHP file to GeoJSon using the [following website](https://mygeodata.cloud/converter/shp-to-geojson)
 
@@ -123,7 +127,8 @@ This is the data that came with the map:
 # see data in map
 head(mapNigeria)
 ```
-First, I need to modify the key merging variable so the merge ocurrs succesfully.
+
+#### 2. First, I need to modify the key merging variable so the merge ocurrs succesfully.
 ```{r}
 #dataNGA$farm_area_S=as.vector(scale(dataNGA$farm_area))
 dataNGA$REGNAME=dataNGA$state
@@ -135,9 +140,9 @@ mapNigeria[[19]] <- tolower(mapNigeria[[19]])
 #df[[1]] <- toupper(df[[1]]) THIS WORKS FOR ONLY A PARTICULAR VAR
 ```
 
-The map also shows important information that common data frames do not have, especially the CRS. The CRS tells information about the map projection. In case you want to combine this map with other ones, you need that all share  the same CRS.
 
-Let's prepare a new spatial data frame. That new map will be the result of merging the current map with the data we have in **dataWorld**:
+
+#### 3. Let's prepare a new spatial data frame. That new map will be the result of merging the current map with the data we have in **dataWorld**:
 
 ```{r, eval=TRUE}
 mapNigeria_indexes=merge(mapNigeria, #map first
@@ -145,14 +150,14 @@ mapNigeria_indexes=merge(mapNigeria, #map first
                    by='REGNAME') 
 ```
 
-The object **mapWorld_indexes** is a map that includes the information from **mapWorld**:
+The object **mapNigeria_indexes** is a map that includes the information from **Nigeria**:
 
 ```{r}
 str(mapNigeria_indexes)
 ```
 Notice that the new map has the same amount of rows of the dataNGA data frame. The original map is still useful, as we will see next. 
 
-Let me plot the original map, this will be our **base map**:
+#### 4. Let me plot the original map, this will be our **base map**:
 
 1. Base layer: 
 ```{r, eval=TRUE}
@@ -164,22 +169,27 @@ baseMap= ggplot(data=mapNigeria) + theme_classic() +
 #see
 baseMap 
 ```
-
-2. Data layer:
+ 
+#### 5. Data layer:
 
 This will another map **on top** of the previous one. I will plot **numeric values**. If a polygon is grey means this country has no information:
+####5.a: Months of Food Security % by States
 ```{r, eval=TRUE}
 numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
                        aes(fill=months_food_insecure_S), # variable from mapWorld_indexes
                        color=NA)
 numericMap
 ```
+#### 5.b: Household Daily per capita consumption (Standarized by state).
+
 ```{r, eval=TRUE}
 numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
                        aes(fill=daily_percap_cons_S), # variable from mapWorld_indexes
                        color=NA)
 numericMap
 ```
+#### 5.c: Household Livestock Stocks (Tropical Livestock Units) (Standarized by state).
+
 ```{r, eval=TRUE}
 numericMap= baseMap + geom_sf(data=mapNigeria_indexes,
                        aes(fill=lvstck_holding_tlu_S), # variable from mapWorld_indexes
@@ -193,7 +203,7 @@ numericMap + scale_fill_gradient(low = 'lightblue',
                                  high= 'blue')
 ```
 
-Let's try the a map using the cluster information (**categorical values**):
+#### 6. Let's try the a map using the cluster information (**categorical values**):
 
 ```{r, eval=TRUE}
 categoricalMap= baseMap + geom_sf(data=mapNigeria_indexes,
@@ -209,18 +219,36 @@ Notice that ggplot chose a good color palette. You can choose another the palett
 categoricalMap + scale_fill_brewer(palette ='YlOrRd')
 ```
 
+
+
 Some more customization:
+```{r}
+#Add titles:
+titleText='Nigeria 2015-16: Cluster Analysis for Agricultural SSP by State'
+sourceText='Source: Evans School Policy Analysis and Research Group (EPAR).'
+x_axis='Number of Months Food Insecure'
+y_axis='Percentage of Total Households surveyed (%)'
+check="Zones"
+categoricalMap = categoricalMap + labs(title=titleText,
+                    # x =x_axis,
+                     #y =y_axis,
+                     caption = sourceText,
+                     fill =check) 
+categoricalMap
+```
+
+
 
 ```{r, eval=TRUE}
 #previously
-Legend_labels=c('1_worst',2,'3_best')
-Legend_title="Nigeria_Order\n(grey is missing)" #\n is new line
+#Legend_labels=c('1_worst',2,'3_best')
+#Legend_title="Nigeria_Order\n(grey is missing)" #\n is new line
 
 #now
-categoricalMap + scale_fill_brewer(palette ='YlOrRd',
-                                   direction = -1, # important!
-                                   labels=Legend_labels,
-                                   name=Legend_title)
+#categoricalMap + scale_fill_brewer(palette ='YlOrRd',
+                                #   direction = -1, # important!
+                                #   labels=Legend_labels,
+                                #   name=Legend_title)
 ```
 
 
